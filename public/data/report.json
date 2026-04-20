@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-20T07:52:42.094Z",
+  "generatedAt": "2026-04-20T12:45:01.338Z",
   "network": "mainnet",
   "firstRound": 69,
   "currentRound": 95,
@@ -662,15 +662,15 @@
       "rewardsClaimedCount": 0,
       "totalRelayerRewards": "0.00 B3TR",
       "totalRelayerRewardsRaw": "0",
-      "estimatedRelayerRewards": "9463.57 B3TR",
-      "estimatedRelayerRewardsRaw": "9463572397928761745113",
+      "estimatedRelayerRewards": "7743.07 B3TR",
+      "estimatedRelayerRewardsRaw": "7743079171578827192964",
       "numRelayers": 12,
-      "vthoSpentOnVoting": "22113.73 VTHO",
-      "vthoSpentOnVotingRaw": "22113733430833524842062",
+      "vthoSpentOnVoting": "22119.21 VTHO",
+      "vthoSpentOnVotingRaw": "22119215870833524842062",
       "vthoSpentOnClaiming": "0.00 VTHO",
       "vthoSpentOnClaimingRaw": "0",
-      "vthoSpentTotal": "22113.73 VTHO",
-      "vthoSpentTotalRaw": "22113733430833524842062",
+      "vthoSpentTotal": "22119.21 VTHO",
+      "vthoSpentTotalRaw": "22119215870833524842062",
       "expectedActions": 4492,
       "completedActions": 3366,
       "reducedUsersCount": 35,
@@ -1755,6 +1755,42 @@
     },
     {
       "address": "0xb8c751c4803311f7142639ca769b5f4404549340",
+      "rounds": []
+    },
+    {
+      "address": "0x01422d55062062b83f1c7c2f9d8160a50fe4e50a",
+      "rounds": []
+    },
+    {
+      "address": "0x186c9039614901978b8778c2ba9ecad0832a268a",
+      "rounds": []
+    },
+    {
+      "address": "0x4f78d3a317c4f6b6bbecef5e793b5132a970609c",
+      "rounds": []
+    },
+    {
+      "address": "0xfb17c5c77c6c0cb6e0855e5535e997e6bb2b48f3",
+      "rounds": []
+    },
+    {
+      "address": "0x4c5e9b3921ce58d2b87f540085b41b3c374ee237",
+      "rounds": []
+    },
+    {
+      "address": "0x746ee471aabd3b1cf127320e472d8dcacd3c3665",
+      "rounds": []
+    },
+    {
+      "address": "0xec99a6adec87f261f115c55e0d54cb02dfa2b5b4",
+      "rounds": []
+    },
+    {
+      "address": "0x5e5de036e5980bcceca3923b3f9736fa36fed914",
+      "rounds": []
+    },
+    {
+      "address": "0xdcd54fedbd66831a4dcc3a9019f000a3fe1ae0eb",
       "rounds": []
     },
     {
