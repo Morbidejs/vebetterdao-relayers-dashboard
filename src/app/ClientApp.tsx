@@ -3,7 +3,6 @@
 import { Container, Flex, VStack } from "@chakra-ui/react"
 import dynamic from "next/dynamic"
 
-import { MigrationBanner } from "@/components/Banners"
 import "@/i18n"
 import { Providers } from "./providers"
 
@@ -20,7 +19,6 @@ export function ClientApp({ children }: { children: React.ReactNode }) {
     <Providers>
       <VStack minH="100vh" gap={0} align="stretch">
         <Navbar />
-        <MigrationBanner />
         <Flex flex={1}>
           <Container
             flex={1}
