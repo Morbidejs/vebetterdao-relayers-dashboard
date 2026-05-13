@@ -15,12 +15,14 @@
  */
 
 import { ThorClient, MAINNET_URL } from "@vechain/sdk-network";
-import { ABIContract, Hex } from "@vechain/sdk-core";
+import { ABIContract, Hex, Revision } from "@vechain/sdk-core";
 import {
   XAllocationVoting__factory,
   VoterRewards__factory,
   RelayerRewardsPool__factory,
   Emissions__factory,
+  B3TRGovernor__factory,
+  NavigatorRegistry__factory,
 } from "@vechain/vebetterdao-contracts/typechain-types";
 import * as fs from "fs";
 import * as path from "path";
@@ -32,6 +34,8 @@ const mainnetConfig = {
     "0x34b56f892c9e977b9ba2e43ba64c27d368ab3c86",
   voterRewardsContractAddress: "0x838A33AF756a6366f93e201423E1425f67eC0Fa7",
   emissionsContractAddress: "0xDf94739bd169C84fe6478D8420Bb807F1f47b135",
+  b3trGovernorContractAddress: "0x1c65C25fABe2fc1bCb82f253fA0C916a322f777C",
+  navigatorRegistryContractAddress: "0xef238e33fc78ecc79beaf8386254a0fc67d048e0",
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -60,9 +64,13 @@ const CONFIG = mainnetConfig;
 
 interface RoundAnalytics {
   roundId: number;
+  /**
+   * Total users served = auto-voters + delegated citizens (matches RelayerRewardsPool V3 allocationUsers).
+   * Pre-navigator rounds: auto-voters only.
+   */
   autoVotingUsersCount: number;
   votedForCount: number;
-  /** Users for whom the relayer attempted a vote but it was skipped (invalid). */
+  /** AutoVoteSkipped count (auto-voters only). Navigator skips tracked separately. */
   invalidVotesCount: number;
   rewardsClaimedCount: number;
   totalRelayerRewards: string;
@@ -84,6 +92,14 @@ interface RoundAnalytics {
   allActionsOk: boolean; // True if all expected work was done
   actionStatus: string; // Human readable status
   isRoundEnded: boolean; // True if the round has ended
+  // Navigator era additions (optional for backward compat)
+  autoVoterUsersCount?: number;          // Strict auto-voters only (AutoVotingToggled-derived)
+  citizenUsersCount?: number;            // Citizens delegated at round snapshot
+  activeProposalsCount?: number;         // Governance proposals active at round start
+  navigatorAllocationSkipsCount?: number; // NavigatorVoteSkipped events
+  navigatorGovernanceSkipsCount?: number; // NavigatorGovernanceVoteSkipped events
+  autoVoterVotedCount?: number;          // AllocationAutoVoteCast voter count
+  citizenVotedCount?: number;            // NavigatorVoteCast citizen count
 }
 
 interface RelayerRoundBreakdown {
@@ -1242,6 +1258,260 @@ async function getRelayerRewardsClaimed(
   return claimedMap;
 }
 
+// ============ Navigator / Citizen Helpers ============
+
+/**
+ * Get the count of delegated citizens at a specific block (NavigatorRegistry view).
+ * Returns 0 if the call reverts (e.g. pre-navigator deployment) — graceful fallback.
+ */
+async function getDelegatedCitizensAtTimepoint(
+  thor: ThorClient,
+  navigatorRegistryAddress: string,
+  timepointBlock: number,
+): Promise<number> {
+  try {
+    const navContract = ABIContract.ofAbi(NavigatorRegistry__factory.abi);
+    const result = await thor.contracts.executeCall(
+      navigatorRegistryAddress,
+      navContract.getFunction("getTotalDelegatedCitizensAtTimepoint"),
+      [timepointBlock],
+    );
+    if (!result.success) return 0;
+    return Number(result.result?.array?.[0] ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Get the count of governance proposals active at the round snapshot (B3TRGovernor view,
+ * called at a historical revision via SDK's revision option).
+ * Returns 0 if the call reverts (pre-navigator) or no proposals are active.
+ */
+async function getActiveProposalsCountAtRevision(
+  thor: ThorClient,
+  governorAddress: string,
+  revisionBlock: number,
+): Promise<number> {
+  try {
+    const govContract = ABIContract.ofAbi(B3TRGovernor__factory.abi);
+    const result = await thor.contracts.executeCall(
+      governorAddress,
+      govContract.getFunction("getActiveProposals"),
+      [],
+      { revision: Revision.of(revisionBlock) },
+    );
+    if (!result.success) return 0;
+    const arr = result.result?.array?.[0];
+    if (Array.isArray(arr)) return arr.length;
+    return 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Scan NavigatorVoteSkipped events (XAllocationVoting) for a round. Returns the set of citizen addresses.
+ * Event signature: NavigatorVoteSkipped(citizen indexed, navigator indexed, roundId indexed) — roundId is topic3.
+ */
+async function getNavigatorAllocationSkipsForRound(
+  thor: ThorClient,
+  xavAddress: string,
+  roundId: number,
+  fromBlock: number,
+  toBlock: number,
+): Promise<Set<string>> {
+  const xav = ABIContract.ofAbi(XAllocationVoting__factory.abi);
+  let eventAbi: any;
+  try {
+    eventAbi = xav.getEvent("NavigatorVoteSkipped");
+  } catch {
+    return new Set();
+  }
+  const roundIdHex = "0x" + roundId.toString(16).padStart(64, "0");
+  const citizens = new Set<string>();
+  let offset = 0;
+  const MAX_EVENTS_PER_REQUEST = 1000;
+
+  while (true) {
+    const logs = await thor.logs.filterEventLogs({
+      range: { unit: "block" as const, from: fromBlock, to: toBlock },
+      options: { offset, limit: MAX_EVENTS_PER_REQUEST },
+      order: "asc",
+      criteriaSet: [
+        {
+          criteria: {
+            address: xavAddress,
+            topic0: eventAbi.encodeFilterTopicsNoNull({})[0],
+            topic3: roundIdHex,
+          },
+          eventAbi,
+        },
+      ],
+    });
+    for (const log of logs) {
+      const decoded = eventAbi.decodeEventLog({
+        topics: log.topics.map((t: string) => Hex.of(t)),
+        data: Hex.of(log.data),
+      });
+      const citizen = decoded.args.citizen as string | undefined;
+      if (citizen) citizens.add(citizen.toLowerCase());
+    }
+    if (logs.length < MAX_EVENTS_PER_REQUEST) break;
+    offset += MAX_EVENTS_PER_REQUEST;
+  }
+  return citizens;
+}
+
+/**
+ * Unique tx IDs from NavigatorVoteSkipped events for a round (for VTHO attribution).
+ */
+async function getNavigatorAllocationSkipTxIds(
+  thor: ThorClient,
+  xavAddress: string,
+  roundId: number,
+  fromBlock: number,
+  toBlock: number,
+): Promise<Set<string>> {
+  const xav = ABIContract.ofAbi(XAllocationVoting__factory.abi);
+  let eventAbi: any;
+  try {
+    eventAbi = xav.getEvent("NavigatorVoteSkipped");
+  } catch {
+    return new Set();
+  }
+  const roundIdHex = "0x" + roundId.toString(16).padStart(64, "0");
+  const txIds = new Set<string>();
+  let offset = 0;
+  const MAX_EVENTS_PER_REQUEST = 1000;
+
+  while (true) {
+    const logs = await thor.logs.filterEventLogs({
+      range: { unit: "block" as const, from: fromBlock, to: toBlock },
+      options: { offset, limit: MAX_EVENTS_PER_REQUEST },
+      order: "asc",
+      criteriaSet: [
+        {
+          criteria: {
+            address: xavAddress,
+            topic0: eventAbi.encodeFilterTopicsNoNull({})[0],
+            topic3: roundIdHex,
+          },
+          eventAbi,
+        },
+      ],
+    });
+    for (const log of logs) {
+      if (log.meta?.txID) txIds.add(log.meta.txID);
+    }
+    if (logs.length < MAX_EVENTS_PER_REQUEST) break;
+    offset += MAX_EVENTS_PER_REQUEST;
+  }
+  return txIds;
+}
+
+/**
+ * Scan NavigatorGovernanceVoteSkipped (B3TRGovernor) in [fromBlock, toBlock]. Returns count and tx IDs.
+ * Event has no roundId — citizens skip per-proposal during the round window.
+ */
+async function getNavigatorGovernanceSkipsInRange(
+  thor: ThorClient,
+  governorAddress: string,
+  fromBlock: number,
+  toBlock: number,
+): Promise<{ count: number; txIds: Set<string> }> {
+  const gov = ABIContract.ofAbi(B3TRGovernor__factory.abi);
+  let eventAbi: any;
+  try {
+    eventAbi = gov.getEvent("NavigatorGovernanceVoteSkipped");
+  } catch {
+    return { count: 0, txIds: new Set() };
+  }
+  let count = 0;
+  const txIds = new Set<string>();
+  let offset = 0;
+  const MAX_EVENTS_PER_REQUEST = 1000;
+
+  while (true) {
+    const logs = await thor.logs.filterEventLogs({
+      range: { unit: "block" as const, from: fromBlock, to: toBlock },
+      options: { offset, limit: MAX_EVENTS_PER_REQUEST },
+      order: "asc",
+      criteriaSet: [
+        {
+          criteria: {
+            address: governorAddress,
+            topic0: eventAbi.encodeFilterTopicsNoNull({})[0],
+          },
+          eventAbi,
+        },
+      ],
+    });
+    for (const log of logs) {
+      count++;
+      if (log.meta?.txID) txIds.add(log.meta.txID);
+    }
+    if (logs.length < MAX_EVENTS_PER_REQUEST) break;
+    offset += MAX_EVENTS_PER_REQUEST;
+  }
+  return { count, txIds };
+}
+
+/**
+ * Scan NavigatorVoteCast events (XAllocationVoting) for citizen allocation votes in a round.
+ * Returns voter set + tx IDs.
+ */
+async function getNavigatorVoteCastForRound(
+  thor: ThorClient,
+  xavAddress: string,
+  roundId: number,
+  fromBlock: number,
+  toBlock: number,
+): Promise<{ citizens: Set<string>; txIds: Set<string> }> {
+  const xav = ABIContract.ofAbi(XAllocationVoting__factory.abi);
+  let eventAbi: any;
+  try {
+    eventAbi = xav.getEvent("NavigatorVoteCast");
+  } catch {
+    return { citizens: new Set(), txIds: new Set() };
+  }
+  const roundIdHex = "0x" + roundId.toString(16).padStart(64, "0");
+  const citizens = new Set<string>();
+  const txIds = new Set<string>();
+  let offset = 0;
+  const MAX_EVENTS_PER_REQUEST = 1000;
+
+  while (true) {
+    const logs = await thor.logs.filterEventLogs({
+      range: { unit: "block" as const, from: fromBlock, to: toBlock },
+      options: { offset, limit: MAX_EVENTS_PER_REQUEST },
+      order: "asc",
+      criteriaSet: [
+        {
+          criteria: {
+            address: xavAddress,
+            topic0: eventAbi.encodeFilterTopicsNoNull({})[0],
+            topic3: roundIdHex,
+          },
+          eventAbi,
+        },
+      ],
+    });
+    for (const log of logs) {
+      const decoded = eventAbi.decodeEventLog({
+        topics: log.topics.map((t: string) => Hex.of(t)),
+        data: Hex.of(log.data),
+      });
+      const citizen = decoded.args.citizen as string | undefined;
+      if (citizen) citizens.add(citizen.toLowerCase());
+      if (log.meta?.txID) txIds.add(log.meta.txID);
+    }
+    if (logs.length < MAX_EVENTS_PER_REQUEST) break;
+    offset += MAX_EVENTS_PER_REQUEST;
+  }
+  return { citizens, txIds };
+}
+
 // ============ Formatting Helpers ============
 
 /**
@@ -1299,15 +1569,32 @@ async function analyzeRound(
   );
   console.log(`    - Auto-voting users at snapshot: ${autoVotingUsers.length}`);
 
-  // Get users who were voted for by relayer
-  const votedForUsers = await getAutoVotesForRound(
+  // Get users who were voted for by relayer (auto-voters via AllocationAutoVoteCast)
+  const autoVotedForUsers = await getAutoVotesForRound(
     thor,
     CONFIG.xAllocationVotingContractAddress,
     roundId,
     roundSnapshot,
     roundDeadline,
   );
-  console.log(`    - Users voted for: ${votedForUsers.size}`);
+
+  // Get citizens voted for by relayer (NavigatorVoteCast — V3 navigator allocation)
+  const navigatorVoteCast = await getNavigatorVoteCastForRound(
+    thor,
+    CONFIG.xAllocationVotingContractAddress,
+    roundId,
+    roundSnapshot,
+    roundDeadline,
+  );
+
+  // Combined set of voters covered by the relayer this round
+  const votedForUsers = new Set<string>([
+    ...autoVotedForUsers,
+    ...navigatorVoteCast.citizens,
+  ]);
+  console.log(
+    `    - Users voted for: ${votedForUsers.size} (auto: ${autoVotedForUsers.size}, citizens: ${navigatorVoteCast.citizens.size})`,
+  );
 
   // Get users whose vote was skipped (invalid - relayer attempted but rules not respected)
   const skippedVoteUsers = await getAutoVoteSkippedForRound(
@@ -1317,7 +1604,26 @@ async function analyzeRound(
     roundSnapshot,
     roundDeadline,
   );
-  console.log(`    - Invalid votes (skipped): ${skippedVoteUsers.size}`);
+  console.log(`    - Invalid votes (skipped, auto-voters): ${skippedVoteUsers.size}`);
+
+  // Navigator allocation skips (citizens whose allocation vote was skipped)
+  const navigatorAllocationSkips = await getNavigatorAllocationSkipsForRound(
+    thor,
+    CONFIG.xAllocationVotingContractAddress,
+    roundId,
+    roundSnapshot,
+    roundDeadline,
+  );
+  console.log(`    - Navigator allocation skips: ${navigatorAllocationSkips.size}`);
+
+  // Navigator governance skips (citizens whose governance vote was skipped, per proposal)
+  const navigatorGovernanceSkips = await getNavigatorGovernanceSkipsInRange(
+    thor,
+    CONFIG.b3trGovernorContractAddress,
+    roundSnapshot,
+    roundDeadline,
+  );
+  console.log(`    - Navigator governance skips: ${navigatorGovernanceSkips.count}`);
 
   // Get users who had rewards claimed by relayer
   // Claims happen after the round ends, so we search from deadline onwards
@@ -1376,7 +1682,21 @@ async function analyzeRound(
     roundSnapshot,
     roundDeadline,
   );
-  const allVotingTxIds = new Set([...votingTxIds, ...skippedTxIds]);
+  // Navigator allocation skip tx IDs (relayer voting attempts for citizens that got skipped)
+  const navigatorAllocationSkipTxIds = await getNavigatorAllocationSkipTxIds(
+    thor,
+    CONFIG.xAllocationVotingContractAddress,
+    roundId,
+    roundSnapshot,
+    roundDeadline,
+  );
+  const allVotingTxIds = new Set([
+    ...votingTxIds,
+    ...skippedTxIds,
+    ...navigatorVoteCast.txIds, // citizen allocation votes
+    ...navigatorAllocationSkipTxIds, // citizen allocation skips
+    ...navigatorGovernanceSkips.txIds, // citizen governance skips
+  ]);
   const vthoSpentOnVoting = await calculateVthoSpent(thor, allVotingTxIds);
   console.log(
     `    - VTHO spent on voting (round ${roundId}): ${formatVTHO(vthoSpentOnVoting)} (${allVotingTxIds.size} txs)`,
@@ -1432,28 +1752,51 @@ async function analyzeRound(
   );
   console.log(`    - Round ended: ${isRoundEnded ? "Yes" : "No"}`);
 
-  // Status check: voting + claiming completion
-  const expectedToVote = autoVotingUsers.length - reducedUsersCount;
+  // Navigator era: citizen count + active governance proposals at round snapshot
+  const citizenUsersCount = await getDelegatedCitizensAtTimepoint(
+    thor,
+    CONFIG.navigatorRegistryContractAddress,
+    roundSnapshot,
+  );
+  const activeProposalsCount = await getActiveProposalsCountAtRevision(
+    thor,
+    CONFIG.b3trGovernorContractAddress,
+    roundSnapshot,
+  );
+  console.log(
+    `    - Delegated citizens at snapshot: ${citizenUsersCount} | active proposals: ${activeProposalsCount}`,
+  );
+
+  const autoVoterUsersCount = autoVotingUsers.length;
+  const totalUsersServed = autoVoterUsersCount + citizenUsersCount;
+
+  // Status check: voting + claiming completion. Under V3, "users to vote" includes citizens.
+  // Skipped users = legitimately reduced (V2 batch) + AutoVoteSkipped + NavigatorVoteSkipped.
+  // The V3 `ExpectedActionsReduced` event field was renamed from `userCount` → `actionsReduced`
+  // so `reducedUsersCount` is effectively 0 under V3; the per-event sources are the truth.
+  const skippedUsers =
+    reducedUsersCount + skippedVoteUsers.size + navigatorAllocationSkips.size;
+  const expectedToVote = totalUsersServed - skippedUsers;
   const votingComplete = votedForUsers.size >= expectedToVote;
   const missedVotes = expectedToVote - votedForUsers.size;
 
-  // For ended rounds, use on-chain action counters (includes both votes AND claims)
+  // For ended rounds, use on-chain action counters (includes votes, claims, and governance under V3)
   // For active rounds, only voting is expected — claiming happens after the round ends
   const allActionsOk = isRoundEnded
     ? verificationData.completedActions >= verificationData.expectedActions
     : votingComplete;
 
   let actionStatus: string;
-  if (autoVotingUsers.length === 0) {
+  if (totalUsersServed === 0) {
     actionStatus = "N/A";
   } else if (votingComplete) {
     if (isRoundEnded && !allActionsOk) {
       const missedClaims = Math.max(0, expectedToVote - claimedUsers.size);
       actionStatus = `⚠ ${missedClaims} claims missing`;
-    } else if (reducedUsersCount === 0) {
+    } else if (skippedUsers === 0) {
       actionStatus = "✓ All voted";
     } else {
-      actionStatus = `✓ OK (${reducedUsersCount} skips)`;
+      actionStatus = `✓ OK (${skippedUsers} skips)`;
     }
   } else {
     actionStatus = `⚠ ${missedVotes} not voted`;
@@ -1462,7 +1805,7 @@ async function analyzeRound(
 
   return {
     roundId,
-    autoVotingUsersCount: autoVotingUsers.length,
+    autoVotingUsersCount: totalUsersServed,
     votedForCount: votedForUsers.size,
     invalidVotesCount: skippedVoteUsers.size,
     rewardsClaimedCount: claimedUsers.size,
@@ -1484,6 +1827,13 @@ async function analyzeRound(
     allActionsOk,
     actionStatus,
     isRoundEnded,
+    autoVoterUsersCount,
+    citizenUsersCount,
+    activeProposalsCount,
+    navigatorAllocationSkipsCount: navigatorAllocationSkips.size,
+    navigatorGovernanceSkipsCount: navigatorGovernanceSkips.count,
+    autoVoterVotedCount: autoVotedForUsers.size,
+    citizenVotedCount: navigatorVoteCast.citizens.size,
   };
 }
 

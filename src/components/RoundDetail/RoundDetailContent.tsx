@@ -19,7 +19,7 @@ import {
 } from "@vechain/vechain-kit";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LuInfo, LuTriangleAlert, LuWallet, LuUsers } from "react-icons/lu";
+import { LuInfo, LuTriangleAlert, LuWallet, LuUsers, LuCompass } from "react-icons/lu";
 import { formatEther } from "viem";
 
 import { useB3trToVthoRate } from "@/hooks/useB3trToVthoRate";
@@ -344,10 +344,28 @@ export function RoundDetailContent({
                       totalVoters != null ? formatNumber(totalVoters) : "\u2014"
                     }
                   />
-                  <SummaryRow
-                    label={t("Users to Serve")}
-                    value={formatNumber(round.autoVotingUsersCount)}
-                  />
+                  <VStack gap="0" align="stretch">
+                    <SummaryRow
+                      label={t("Users served")}
+                      value={formatNumber(round.autoVotingUsersCount)}
+                    />
+                    {(round.citizenUsersCount ?? 0) > 0 && (
+                      <HStack justify="flex-end" w="full">
+                        <Text textStyle="xs" color="text.subtle">
+                          {t("usersServedBreakdown", {
+                            auto: formatNumber(round.autoVoterUsersCount ?? 0),
+                            citizens: formatNumber(round.citizenUsersCount ?? 0),
+                          })}
+                        </Text>
+                      </HStack>
+                    )}
+                  </VStack>
+                  {(round.activeProposalsCount ?? 0) > 0 && (
+                    <SummaryRow
+                      label={t("Active proposals")}
+                      value={formatNumber(round.activeProposalsCount ?? 0)}
+                    />
+                  )}
                   <HStack justify="space-between" w="full">
                     <Text textStyle="sm" color="text.subtle">
                       {t("Invalid users")}
@@ -359,7 +377,11 @@ export function RoundDetailContent({
                       _hover={{ opacity: 0.8 }}
                     >
                       <Text textStyle="sm" fontWeight="semibold">
-                        {`${formatNumber(round.invalidVotesCount ?? 0)} ${t("vote skipped")}`}
+                        {`${formatNumber(
+                          (round.invalidVotesCount ?? 0) +
+                            (round.navigatorAllocationSkipsCount ?? 0) +
+                            (round.navigatorGovernanceSkipsCount ?? 0),
+                        )} ${t("vote skipped")}`}
                       </Text>
                       <Box as="span" color="text.subtle" fontSize="14px">
                         <LuInfo />
@@ -422,19 +444,122 @@ export function RoundDetailContent({
               label={t("Voted for")}
               value={formatNumber(round.votedForCount)}
               secondaryValue={formatNumber(
-                round.autoVotingUsersCount - round.reducedUsersCount,
+                Math.max(
+                  0,
+                  round.autoVotingUsersCount -
+                    round.reducedUsersCount -
+                    (round.invalidVotesCount ?? 0) -
+                    (round.navigatorAllocationSkipsCount ?? 0),
+                )
               )}
-              sublabel={t("users")}
+              sublabel={t("eligible users")}
             />
             <MiniStatCard
               label={t("Claimed for")}
               value={formatNumber(round.rewardsClaimedCount)}
               secondaryValue={formatNumber(
-                round.autoVotingUsersCount - round.reducedUsersCount,
+                Math.max(
+                  0,
+                  round.autoVotingUsersCount -
+                    round.reducedUsersCount -
+                    (round.invalidVotesCount ?? 0) -
+                    (round.navigatorAllocationSkipsCount ?? 0),
+                )
               )}
-              sublabel={t("users")}
+              sublabel={t("eligible users")}
             />
           </SimpleGrid>
+
+          {(round.citizenUsersCount ?? 0) > 0 && (
+            <Card.Root variant="primary">
+              <Card.Body>
+                <VStack gap="3" align="stretch">
+                  <SectionHeader
+                    title={t("Citizens")}
+                    icon={<LuCompass />}
+                  />
+                  <SimpleGrid columns={{ base: 2, md: 2 }} gap="3">
+                    <VStack gap="0" align="start">
+                      <Text textStyle="xxs" color="text.subtle" textTransform="uppercase" letterSpacing="wider">
+                        {t("Delegated")}
+                      </Text>
+                      <Text textStyle={{ base: "lg", md: "xl" }} fontWeight="bold">
+                        {formatNumber(round.citizenUsersCount ?? 0)}
+                      </Text>
+                      <Text textStyle="xxs" color="text.subtle">
+                        {t("at round snapshot")}
+                      </Text>
+                    </VStack>
+                    <VStack gap="0" align="start">
+                      <Text textStyle="xxs" color="text.subtle" textTransform="uppercase" letterSpacing="wider">
+                        {t("Allocation votes")}
+                      </Text>
+                      <HStack gap="1" align="baseline">
+                        <Text textStyle={{ base: "lg", md: "xl" }} fontWeight="bold">
+                          {formatNumber(round.citizenVotedCount ?? 0)}
+                        </Text>
+                        <Text textStyle="sm" color="text.subtle" fontWeight="semibold">
+                          /{formatNumber(round.citizenUsersCount ?? 0)}
+                        </Text>
+                      </HStack>
+                      <Text textStyle="xxs" color="text.subtle">
+                        {(round.navigatorAllocationSkipsCount ?? 0) > 0
+                          ? t("{{count}} navigator-skipped", {
+                              count: round.navigatorAllocationSkipsCount ?? 0,
+                            })
+                          : t("citizens served")}
+                      </Text>
+                    </VStack>
+                    <VStack gap="0" align="start">
+                      <Text textStyle="xxs" color="text.subtle" textTransform="uppercase" letterSpacing="wider">
+                        {t("Active proposals")}
+                      </Text>
+                      <Text textStyle={{ base: "lg", md: "xl" }} fontWeight="bold">
+                        {formatNumber(round.activeProposalsCount ?? 0)}
+                      </Text>
+                      <Text textStyle="xxs" color="text.subtle">
+                        {t("at round start")}
+                      </Text>
+                    </VStack>
+                    <VStack gap="0" align="start">
+                      <Text textStyle="xxs" color="text.subtle" textTransform="uppercase" letterSpacing="wider">
+                        {t("Governance work")}
+                      </Text>
+                      <HStack gap="1" align="baseline">
+                        <Text textStyle={{ base: "lg", md: "xl" }} fontWeight="bold">
+                          {formatNumber(
+                            Math.max(
+                              0,
+                              (round.citizenUsersCount ?? 0) *
+                                (round.activeProposalsCount ?? 0) -
+                                (round.navigatorGovernanceSkipsCount ?? 0),
+                            ),
+                          )}
+                        </Text>
+                        <Text textStyle="sm" color="text.subtle" fontWeight="semibold">
+                          /
+                          {formatNumber(
+                            (round.citizenUsersCount ?? 0) *
+                              (round.activeProposalsCount ?? 0),
+                          )}
+                        </Text>
+                      </HStack>
+                      <Text textStyle="xxs" color="text.subtle">
+                        {(round.navigatorGovernanceSkipsCount ?? 0) > 0
+                          ? t("{{count}} skipped", {
+                              count: round.navigatorGovernanceSkipsCount ?? 0,
+                            })
+                          : t("gov votes cast")}
+                      </Text>
+                    </VStack>
+                  </SimpleGrid>
+                  <Text textStyle="xxs" color="text.subtle" letterSpacing="wider">
+                    {t("citizensCardHint")}
+                  </Text>
+                </VStack>
+              </Card.Body>
+            </Card.Root>
+          )}
         </VStack>
 
         {/* Right Column */}

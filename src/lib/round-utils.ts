@@ -22,7 +22,17 @@ export interface RoundProgress {
 }
 
 function getEligibleUsers(round: RoundAnalytics): number {
-  return Math.max(0, round.autoVotingUsersCount - round.reducedUsersCount)
+  // Users actually on the hook this round = total served minus everything the
+  // contract has already excluded from expected actions: legit reductions,
+  // auto-vote skips, and navigator allocation skips. This matches the
+  // denominator the contract uses for completion/lock checks.
+  return Math.max(
+    0,
+    round.autoVotingUsersCount -
+      round.reducedUsersCount -
+      (round.invalidVotesCount ?? 0) -
+      (round.navigatorAllocationSkipsCount ?? 0),
+  )
 }
 
 /**

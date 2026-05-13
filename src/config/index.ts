@@ -17,6 +17,8 @@ export type AppConfig = {
   relayerRewardsPoolContractAddress: string
   voterRewardsContractAddress: string
   emissionsContractAddress: string
+  b3trGovernorContractAddress: string
+  navigatorRegistryContractAddress: string
   nodeUrl: string
   network: NetworkConfig
   governanceUrl: string
@@ -28,6 +30,8 @@ const mainnetConfig: AppConfig = {
   relayerRewardsPoolContractAddress: "0x34b56f892c9e977b9ba2e43ba64c27d368ab3c86",
   voterRewardsContractAddress: "0x838A33AF756a6366f93e201423E1425f67eC0Fa7",
   emissionsContractAddress: "0xDf94739bd169C84fe6478D8420Bb807F1f47b135",
+  b3trGovernorContractAddress: "0x1c65C25fABe2fc1bCb82f253fA0C916a322f777C",
+  navigatorRegistryContractAddress: "0xef238e33fc78ecc79beaf8386254a0fc67d048e0",
   nodeUrl: "https://mainnet.vechain.org",
   governanceUrl: "https://governance.vebetterdao.org",
   network: {
@@ -70,6 +74,8 @@ const testnetStagingConfig: AppConfig = {
   relayerRewardsPoolContractAddress: "0x92b5a7484970d9b2ad981e8135ff14e6f996dc04",
   voterRewardsContractAddress: "0x851ef91801899a4e7e4a3174a9300b3e20c957e8",
   emissionsContractAddress: "0x66898f98409db20ed6a1bf0021334b7897eb0688",
+  b3trGovernorContractAddress: "0xc30b4d0837f7e3706749655d8bde0c0f265dd81b",
+  navigatorRegistryContractAddress: "0x15a38b65f26bdbca50addf3865732613a45bbc00",
   nodeUrl: "https://testnet.vechain.org",
   governanceUrl: "https://staging.testnet.governance.vebetterdao.org",
   network: {

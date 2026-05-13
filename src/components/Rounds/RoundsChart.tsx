@@ -32,7 +32,7 @@ const PERIOD_ROUND_LIMITS: Record<Period, number | null> = {
 const METRIC_CONFIG_KEYS: Record<ChartMetric, { labelKey: string; colorKey: string; unit: string }> = {
   vthoSpent: { labelKey: "VTHO Spent", colorKey: "blue.400", unit: "VTHO" },
   rewards: { labelKey: "B3TR Rewards", colorKey: "green.400", unit: "B3TR" },
-  users: { labelKey: "Auto-voting Users", colorKey: "purple.400", unit: "" },
+  users: { labelKey: "Users served", colorKey: "purple.400", unit: "" },
 }
 
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 })
