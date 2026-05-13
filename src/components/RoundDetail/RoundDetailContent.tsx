@@ -499,15 +499,22 @@ export function RoundDetailContent({
                           {formatNumber(round.citizenVotedCount ?? 0)}
                         </Text>
                         <Text textStyle="sm" color="text.subtle" fontWeight="semibold">
-                          /{formatNumber(round.citizenUsersCount ?? 0)}
+                          /
+                          {formatNumber(
+                            Math.max(
+                              0,
+                              (round.citizenUsersCount ?? 0) -
+                                (round.navigatorAllocationSkipsCount ?? 0),
+                            ),
+                          )}
                         </Text>
                       </HStack>
                       <Text textStyle="xxs" color="text.subtle">
                         {(round.navigatorAllocationSkipsCount ?? 0) > 0
-                          ? t("{{count}} navigator-skipped", {
+                          ? t("{{count}} invalid citizens skipped", {
                               count: round.navigatorAllocationSkipsCount ?? 0,
                             })
-                          : t("citizens served")}
+                          : t("eligible citizens")}
                       </Text>
                     </VStack>
                     <VStack gap="0" align="start">
@@ -523,33 +530,24 @@ export function RoundDetailContent({
                     </VStack>
                     <VStack gap="0" align="start">
                       <Text textStyle="xxs" color="text.subtle" textTransform="uppercase" letterSpacing="wider">
-                        {t("Governance work")}
+                        {t("Governance votes")}
                       </Text>
-                      <HStack gap="1" align="baseline">
-                        <Text textStyle={{ base: "lg", md: "xl" }} fontWeight="bold">
-                          {formatNumber(
-                            Math.max(
-                              0,
-                              (round.citizenUsersCount ?? 0) *
-                                (round.activeProposalsCount ?? 0) -
-                                (round.navigatorGovernanceSkipsCount ?? 0),
-                            ),
-                          )}
-                        </Text>
-                        <Text textStyle="sm" color="text.subtle" fontWeight="semibold">
-                          /
-                          {formatNumber(
+                      <Text textStyle={{ base: "lg", md: "xl" }} fontWeight="bold">
+                        {formatNumber(
+                          Math.max(
+                            0,
                             (round.citizenUsersCount ?? 0) *
-                              (round.activeProposalsCount ?? 0),
-                          )}
-                        </Text>
-                      </HStack>
+                              (round.activeProposalsCount ?? 0) -
+                              (round.navigatorGovernanceSkipsCount ?? 0),
+                          ),
+                        )}
+                      </Text>
                       <Text textStyle="xxs" color="text.subtle">
                         {(round.navigatorGovernanceSkipsCount ?? 0) > 0
-                          ? t("{{count}} skipped", {
+                          ? t("{{count}} invalid votes skipped", {
                               count: round.navigatorGovernanceSkipsCount ?? 0,
                             })
-                          : t("gov votes cast")}
+                          : t("cast across proposals")}
                       </Text>
                     </VStack>
                   </SimpleGrid>
