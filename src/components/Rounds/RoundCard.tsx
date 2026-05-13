@@ -87,7 +87,7 @@ export function RoundCard({
     <>
       <StatPill label={t("Round")} value={`#${round.roundId}`} />
       <StatPill
-        label={t("Users served")}
+        label={t("Users to serve")}
         value={formatNumber(round.autoVotingUsersCount)}
       />
       <StatPill label={t("Relayers")} value={round.numRelayers} />

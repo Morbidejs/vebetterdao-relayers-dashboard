@@ -346,7 +346,7 @@ export function RoundDetailContent({
                   />
                   <VStack gap="0" align="stretch">
                     <SummaryRow
-                      label={t("Users served")}
+                      label={t("Users to serve")}
                       value={formatNumber(round.autoVotingUsersCount)}
                     />
                     {(round.citizenUsersCount ?? 0) > 0 && (
