@@ -154,7 +154,16 @@ export function RoundCard({
           <Box hideFrom="md">
             <VStack gap="2" align="stretch" w="full">
               <HStack justify="space-between" w="full">
-                {roundLabel}
+                <HStack gap="2" align="center" minW="0">
+                  {roundLabel}
+                  <Badge
+                    size="sm"
+                    variant="solid"
+                    colorPalette={status.colorPalette}
+                  >
+                    {t(status.label)}
+                  </Badge>
+                </HStack>
                 <IconButton
                   aria-label={t("Go to round")}
                   variant="ghost"
