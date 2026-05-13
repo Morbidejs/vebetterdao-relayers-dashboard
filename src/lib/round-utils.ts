@@ -100,7 +100,13 @@ export function computeRoundProgress(round: RoundAnalytics, currentRoundId?: num
       return { pct: 0, label: "Round Progress", hint: "roundProgressHintNA", colorPalette: "gray" }
 
     case "votingInProgress": {
-      const pct = eligible > 0 ? Math.min(100, Math.round((round.votedForCount / eligible) * 100)) : 0
+      // Never show 100% unless every eligible user voted — Math.round would otherwise
+      // round 99.5%+ up to 100% while the status banner still says "in progress".
+      const pct = eligible > 0
+        ? round.votedForCount >= eligible
+          ? 100
+          : Math.min(99, Math.floor((round.votedForCount / eligible) * 100))
+        : 0
       return { pct, label: "Voting Progress", hint: "roundProgressHintVoting", colorPalette: "blue" }
     }
 
@@ -108,7 +114,11 @@ export function computeRoundProgress(round: RoundAnalytics, currentRoundId?: num
       return { pct: 100, label: "Voting Progress", hint: "roundProgressHintVotingComplete", colorPalette: "blue" }
 
     case "claimingInProgress": {
-      const pct = eligible > 0 ? Math.min(100, Math.round((round.rewardsClaimedCount / eligible) * 100)) : 0
+      const pct = eligible > 0
+        ? round.rewardsClaimedCount >= eligible
+          ? 100
+          : Math.min(99, Math.floor((round.rewardsClaimedCount / eligible) * 100))
+        : 0
       return { pct, label: "Claiming Progress", hint: "roundProgressHintClaiming", colorPalette: "purple" }
     }
 
@@ -116,7 +126,11 @@ export function computeRoundProgress(round: RoundAnalytics, currentRoundId?: num
       return { pct: 100, label: "Round Progress", hint: "roundProgressHintComplete", colorPalette: "green" }
 
     case "rewardsLocked": {
-      const pct = round.expectedActions > 0 ? Math.round((round.completedActions / round.expectedActions) * 100) : 0
+      const pct = round.expectedActions > 0
+        ? round.completedActions >= round.expectedActions
+          ? 100
+          : Math.min(99, Math.floor((round.completedActions / round.expectedActions) * 100))
+        : 0
       return { pct, label: "Round Progress", hint: "roundProgressHintLocked", colorPalette: "red" }
     }
   }
