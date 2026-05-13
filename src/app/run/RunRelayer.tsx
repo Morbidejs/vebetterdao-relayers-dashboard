@@ -24,6 +24,11 @@ import {
   runCastVoteCycle,
   runClaimRewardCycle,
 } from "@vechain/vebetterdao-relayer-node/dist/relayer";
+import {
+  runCitizenAllocationVoteCycle,
+  runCitizenGovernanceVoteCycle,
+  runCitizenClaimRewardCycle,
+} from "@vechain/vebetterdao-relayer-node/dist/citizen-relayer";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FaAndroid, FaApple } from "react-icons/fa";
@@ -267,6 +272,72 @@ export function RunRelayer() {
           if (abortRef.current) break;
           renderCycleResultText(claimResult).forEach(log);
 
+          // Citizen cycles (navigator-delegated). Allocation only runs while the round
+          // is active; governance + claim run regardless (governance over active proposals,
+          // claim for the previous round).
+          if (summary.isRoundActive && summary.citizenUsers > 0) {
+            logRaw("");
+            logRaw(logSectionHeaderText("citizen-vote", summary.currentRoundId));
+            const citizenVoteResult = await raceForceExit(
+              runCitizenAllocationVoteCycle(
+                thor,
+                config,
+                wallet.walletAddress,
+                wallet.privateKey,
+                50,
+                false,
+                log,
+              ),
+            );
+            if (citizenVoteResult === null) break;
+            if (abortRef.current) break;
+            renderCycleResultText(citizenVoteResult).forEach(log);
+          }
+
+          if (
+            summary.isRoundActive &&
+            summary.citizenUsers > 0 &&
+            summary.activeProposals > 0
+          ) {
+            logRaw("");
+            logRaw(
+              logSectionHeaderText("citizen-governance", summary.currentRoundId),
+            );
+            const citizenGovResults = await raceForceExit(
+              runCitizenGovernanceVoteCycle(
+                thor,
+                config,
+                wallet.walletAddress,
+                wallet.privateKey,
+                50,
+                false,
+                log,
+              ),
+            );
+            if (citizenGovResults === null) break;
+            if (abortRef.current) break;
+            for (const r of citizenGovResults) renderCycleResultText(r).forEach(log);
+          }
+
+          if (summary.citizenUsers > 0 && summary.previousRoundId > 0) {
+            logRaw("");
+            logRaw(logSectionHeaderText("citizen-claim", summary.previousRoundId));
+            const citizenClaimResult = await raceForceExit(
+              runCitizenClaimRewardCycle(
+                thor,
+                config,
+                wallet.walletAddress,
+                wallet.privateKey,
+                50,
+                false,
+                log,
+              ),
+            );
+            if (citizenClaimResult === null) break;
+            if (abortRef.current) break;
+            renderCycleResultText(citizenClaimResult).forEach(log);
+          }
+
           const updated = await raceForceExit(
             fetchSummary(thor, config, wallet.walletAddress),
           );
@@ -419,10 +490,10 @@ export function RunRelayer() {
                       wordBreak="break-all"
                     >
                       {
-                        'docker run -it --env MNEMONIC="..." ghcr.io/vechain/vebetterdao-relayer-node:1.1.0'
+                        'docker run -it --env MNEMONIC="..." ghcr.io/vechain/vebetterdao-relayer-node:1.2.0'
                       }
                     </Code>
-                    <CopyButton text='docker run -it --env MNEMONIC="..." ghcr.io/vechain/vebetterdao-relayer-node:1.1.0' />
+                    <CopyButton text='docker run -it --env MNEMONIC="..." ghcr.io/vechain/vebetterdao-relayer-node:1.2.0' />
                   </HStack>
                 </VStack>
 
@@ -454,9 +525,9 @@ export function RunRelayer() {
                       fontFamily="mono"
                       wordBreak="break-all"
                     >
-                      {'MNEMONIC="..." npx @vechain/vebetterdao-relayer-node@1.1.0'}
+                      {'MNEMONIC="..." npx @vechain/vebetterdao-relayer-node@1.2.0'}
                     </Code>
-                    <CopyButton text='MNEMONIC="..." npx @vechain/vebetterdao-relayer-node@1.1.0' />
+                    <CopyButton text='MNEMONIC="..." npx @vechain/vebetterdao-relayer-node@1.2.0' />
                   </HStack>
                 </VStack>
               </Card.Body>

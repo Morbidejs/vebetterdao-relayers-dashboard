@@ -1,6 +1,6 @@
 import type { RelayerSummary, CycleResult } from "@vechain/vebetterdao-relayer-node/dist/types"
 
-const RELAYER_NODE_VERSION = "1.1.0"
+const RELAYER_NODE_VERSION = "1.2.0"
 
 // ANSI color helpers for xterm
 const c = {
@@ -57,11 +57,11 @@ interface RoundStatus {
 }
 
 function getCurrentRoundStatus(s: RelayerSummary): RoundStatus {
-  if (s.autoVotingUsers === 0) {
+  if (s.autoVotingUsers === 0 && s.citizenUsers === 0) {
     return {
       label: "N/A",
       color: c.gray,
-      hint: "No auto-voting users registered for this round.",
+      hint: "No auto-voting users or citizens registered for this round.",
     }
   }
   if (!s.isRoundActive) {
@@ -126,10 +126,26 @@ export function ts(): string {
   return `${c.gray}[${new Date().toLocaleTimeString()}]${c.reset}`
 }
 
-export function logSectionHeaderText(phase: "vote" | "claim", roundId: number): string {
-  const icon = phase === "vote" ? "🗳" : "💰"
-  const label = phase === "vote" ? "Cast Vote" : "Claim Rewards"
-  const text = ` ${icon}  ${label} · Round #${roundId} `
+type SectionPhase = "vote" | "claim" | "citizen-vote" | "citizen-governance" | "citizen-claim"
+
+const SECTION_ICONS: Record<SectionPhase, string> = {
+  "vote": "🗳",
+  "claim": "💰",
+  "citizen-vote": "🏛",
+  "citizen-governance": "⚖",
+  "citizen-claim": "💰",
+}
+
+const SECTION_LABELS: Record<SectionPhase, string> = {
+  "vote": "Cast Vote",
+  "claim": "Claim Rewards",
+  "citizen-vote": "Citizen Allocation",
+  "citizen-governance": "Citizen Governance",
+  "citizen-claim": "Citizen Claims",
+}
+
+export function logSectionHeaderText(phase: SectionPhase, roundId: number): string {
+  const text = ` ${SECTION_ICONS[phase]}  ${SECTION_LABELS[phase]} · Round #${roundId} `
   const lineLen = 60 - text.length
   const left = Math.max(1, Math.floor(lineLen / 2))
   const right = Math.max(1, lineLen - left)
@@ -178,6 +194,16 @@ export function renderSummaryText(s: RelayerSummary): string[] {
   out.push("")
   out.push(
     `  ${c.dim}Auto-voters${c.reset} ${c.bold}${c.white}${s.autoVotingUsers}${c.reset}              ${c.dim}Relayers${c.reset} ${c.bold}${c.white}${s.registeredRelayers.length}${c.reset}`,
+  )
+  const proposalsCell =
+    s.activeProposals > 0
+      ? `${c.dim}Proposals${c.reset} ${c.bold}${c.white}${s.activeProposals}${c.reset}`
+      : ""
+  out.push(
+    `  ${pad(
+      `${c.dim}Citizens${c.reset}    ${c.bold}${c.white}${s.citizenUsers}${c.reset}`,
+      proposalsCell,
+    )}`,
   )
   out.push(`  ${c.dim}Voters${c.reset}      ${c.white}${s.totalVoters}${c.reset}`)
   out.push(
@@ -294,9 +320,17 @@ export function renderSummaryText(s: RelayerSummary): string[] {
   return out
 }
 
+const PHASE_TAGS: Record<SectionPhase, string> = {
+  "vote": `${"\x1b[36m"}Vote${"\x1b[0m"}`,
+  "claim": `${"\x1b[35m"}Claim${"\x1b[0m"}`,
+  "citizen-vote": `${"\x1b[36m"}Citizen Vote${"\x1b[0m"}`,
+  "citizen-governance": `${"\x1b[36m"}Citizen Gov${"\x1b[0m"}`,
+  "citizen-claim": `${"\x1b[35m"}Citizen Claim${"\x1b[0m"}`,
+}
+
 export function renderCycleResultText(r: CycleResult): string[] {
   const lines: string[] = []
-  const tag = r.phase === "vote" ? `${c.cyan}Vote${c.reset}` : `${c.magenta}Claim${c.reset}`
+  const tag = PHASE_TAGS[r.phase as SectionPhase] ?? `${c.white}${r.phase}${c.reset}`
   const dryTag = r.dryRun ? ` ${c.yellow}(DRY RUN)${c.reset}` : ""
 
   if (r.totalUsers === 0) {
