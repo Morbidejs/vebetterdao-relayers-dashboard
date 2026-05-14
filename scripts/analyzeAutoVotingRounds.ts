@@ -1604,7 +1604,6 @@ async function analyzeRound(
     roundSnapshot,
     roundDeadline,
   );
-  console.log(`    - Invalid votes (skipped, auto-voters): ${skippedVoteUsers.size}`);
 
   // Navigator allocation skips (citizens whose allocation vote was skipped)
   const navigatorAllocationSkips = await getNavigatorAllocationSkipsForRound(
@@ -1614,7 +1613,28 @@ async function analyzeRound(
     roundSnapshot,
     roundDeadline,
   );
-  console.log(`    - Navigator allocation skips: ${navigatorAllocationSkips.size}`);
+
+  // Dedupe: a user can appear in both "voted" and "skipped" sets when a second relayer
+  // tries to vote for someone the first relayer already served — the contract emits
+  // AutoVoteSkipped (with appCount: 0 as a sentinel) rather than reverting the whole
+  // batch. Those users are NOT still invalid, so subtract them from the skip sets to
+  // keep the dashboard's numerator/denominator consistent.
+  const autoSkippedRaw = skippedVoteUsers.size;
+  const navSkippedRaw = navigatorAllocationSkips.size;
+  for (const u of votedForUsers) {
+    skippedVoteUsers.delete(u);
+    navigatorAllocationSkips.delete(u);
+  }
+  const autoDeduped = autoSkippedRaw - skippedVoteUsers.size;
+  const navDeduped = navSkippedRaw - navigatorAllocationSkips.size;
+  console.log(
+    `    - Invalid votes (skipped, auto-voters): ${skippedVoteUsers.size}` +
+      (autoDeduped > 0 ? ` (deduped ${autoDeduped} also-voted)` : ""),
+  );
+  console.log(
+    `    - Navigator allocation skips: ${navigatorAllocationSkips.size}` +
+      (navDeduped > 0 ? ` (deduped ${navDeduped} also-voted)` : ""),
+  );
 
   // Navigator governance skips (citizens whose governance vote was skipped, per proposal)
   const navigatorGovernanceSkips = await getNavigatorGovernanceSkipsInRange(
