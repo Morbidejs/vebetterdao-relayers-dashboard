@@ -1,6 +1,6 @@
 "use client";
 
-import { useToken } from "@chakra-ui/react";
+import { useChakraContext } from "@chakra-ui/react";
 import { useCurrentLanguage } from "@vechain/vechain-kit";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,8 +23,7 @@ function LanguageSync({ children }: { children: React.ReactNode }) {
   const { setLanguage: setKitLanguage } = useCurrentLanguage();
 
   useEffect(() => {
-    const handle = (lng: string) =>
-      setKitLanguage(lng.split("-")[0] || "en");
+    const handle = (lng: string) => setKitLanguage(lng.split("-")[0] || "en");
     i18n.on("languageChanged", handle);
     return () => i18n.off("languageChanged", handle);
   }, [i18n, setKitLanguage]);
@@ -42,23 +41,16 @@ export function VechainKitProviderWrapper({ children }: Props) {
   const isDarkMode = colorMode === "dark";
   const lang = i18n.language?.split("-")[0] ?? "en";
 
-  const [
-    bgPrimary,
-    primaryDefault,
-    primaryText,
-    primaryHover,
-    secondaryDefault,
-    secondaryHover,
-    borderSecondary,
-  ] = useToken("colors", [
-    "bg.primary",
-    "actions.primary.default",
-    "actions.primary.text",
-    "actions.primary.hover",
-    "card.subtle",
-    "card.hover",
-    "border.secondary",
-  ]);
+  const sys = useChakraContext();
+  const tokVar = (p: string) => sys.token.var(`colors.${p}`) as string;
+
+  const bgPrimary = tokVar("bg.primary");
+  const primaryDefault = tokVar("actions.primary.default");
+  const primaryText = tokVar("actions.primary.text");
+  const primaryHover = tokVar("actions.primary.hover");
+  const secondaryDefault = tokVar("card.subtle");
+  const secondaryHover = tokVar("card.hover");
+  const borderSecondary = tokVar("border.secondary");
 
   const env = (process.env.NEXT_PUBLIC_APP_ENV ?? "mainnet") as EnvConfig;
   const config = getConfig(env);
@@ -102,8 +94,10 @@ export function VechainKitProviderWrapper({ children }: Props) {
           : undefined,
       }}
       loginMethods={[
-        { method: "vechain", gridColumn: 4 },
-        { method: "dappkit", gridColumn: 4 },
+        { method: "veworld", gridColumn: 4 },
+        { method: "google", gridColumn: 4 },
+        { method: "apple", gridColumn: 4 },
+        { method: "more", gridColumn: 4 },
       ]}
       darkMode={isDarkMode}
       language={lang}
