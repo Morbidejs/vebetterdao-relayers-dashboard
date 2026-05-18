@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-18T13:45:32.440Z",
+  "generatedAt": "2026-05-18T19:04:10.214Z",
   "network": "mainnet",
   "firstRound": 69,
   "currentRound": 99,
@@ -967,34 +967,34 @@
     {
       "roundId": 99,
       "autoVotingUsersCount": 1370,
-      "votedForCount": 1283,
+      "votedForCount": 1286,
       "invalidVotesCount": 39,
       "rewardsClaimedCount": 0,
       "totalRelayerRewards": "0.00 B3TR",
       "totalRelayerRewardsRaw": "0",
-      "estimatedRelayerRewards": "6434.10 B3TR",
-      "estimatedRelayerRewardsRaw": "6434103669785130244875",
+      "estimatedRelayerRewards": "6339.25 B3TR",
+      "estimatedRelayerRewardsRaw": "6339251988970941654949",
       "numRelayers": 11,
-      "vthoSpentOnVoting": "55766.08 VTHO",
-      "vthoSpentOnVotingRaw": "55766087857100060861798",
+      "vthoSpentOnVoting": "55882.61 VTHO",
+      "vthoSpentOnVotingRaw": "55882619297100060861798",
       "vthoSpentOnClaiming": "0.00 VTHO",
       "vthoSpentOnClaimingRaw": "0",
-      "vthoSpentTotal": "55766.08 VTHO",
-      "vthoSpentTotalRaw": "55766087857100060861798",
-      "expectedActions": 5324,
-      "completedActions": 3849,
+      "vthoSpentTotal": "55882.61 VTHO",
+      "vthoSpentTotalRaw": "55882619297100060861798",
+      "expectedActions": 5320,
+      "completedActions": 3858,
       "reducedUsersCount": 0,
-      "missedUsersCount": 368,
+      "missedUsersCount": 365,
       "allActionsOk": false,
-      "actionStatus": "⚠ 48 not voted",
+      "actionStatus": "⚠ 44 not voted",
       "isRoundEnded": false,
       "autoVoterUsersCount": 1321,
       "citizenUsersCount": 49,
       "activeProposalsCount": 0,
-      "navigatorAllocationSkipsCount": 0,
+      "navigatorAllocationSkipsCount": 1,
       "navigatorGovernanceSkipsCount": 0,
       "autoVoterVotedCount": 1280,
-      "citizenVotedCount": 3
+      "citizenVotedCount": 6
     }
   ],
   "relayers": [
@@ -2057,7 +2057,7 @@
           "actions": 559,
           "claimableRewardsRaw": "0",
           "relayerRewardsClaimedRaw": "0",
-          "vthoSpentOnVotingRaw": "27711070617815612827990",
+          "vthoSpentOnVotingRaw": "27650047067964847664056",
           "vthoSpentOnClaimingRaw": "0"
         }
       ]
