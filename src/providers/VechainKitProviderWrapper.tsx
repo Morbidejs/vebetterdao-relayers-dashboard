@@ -94,10 +94,8 @@ export function VechainKitProviderWrapper({ children }: Props) {
           : undefined,
       }}
       loginMethods={[
-        { method: "veworld", gridColumn: 4 },
-        { method: "google", gridColumn: 4 },
-        { method: "apple", gridColumn: 4 },
-        { method: "more", gridColumn: 4 },
+        { method: "vechain", gridColumn: 4 },
+        { method: "dappkit", gridColumn: 4 },
       ]}
       darkMode={isDarkMode}
       language={lang}
