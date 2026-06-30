@@ -2052,14 +2052,27 @@ async function main(): Promise<void> {
 
   // When using checkpoint, always re-analyze the previous round so we pick up new
   // claims (RelayerFeeTaken for cycle N) that happened after the round ended (e.g. during round N+1).
+  // Also re-analyze any ended-but-locked rounds — admin can call
+  // RelayerRewardsPool.reduceExpectedActionsForRound retroactively to unlock them,
+  // and totalWeightedActions / completedWeightedActions are read live from chain.
+  const lockedEndedRoundIds = completedFromCheckpoint
+    .filter((r) => !r.allActionsOk)
+    .map((r) => r.roundId);
+  const minLockedEnded =
+    lockedEndedRoundIds.length > 0 ? Math.min(...lockedEndedRoundIds) : Infinity;
   const effectiveStartRoundId =
     checkpoint && currentRoundId > FIRST_AUTO_VOTING_ROUND
-      ? Math.min(startRoundId, currentRoundId - 1)
+      ? Math.min(startRoundId, currentRoundId - 1, minLockedEnded)
       : startRoundId;
   if (effectiveStartRoundId < startRoundId) {
     console.log(
-      `  Re-analyzing previous round ${effectiveStartRoundId} to capture new claim activity.`,
+      `  Re-analyzing from round ${effectiveStartRoundId} to capture new claim activity and admin reduces.`,
     );
+    if (lockedEndedRoundIds.length > 0) {
+      console.log(
+        `    Locked ended rounds being re-analyzed: ${lockedEndedRoundIds.sort((a, b) => a - b).join(", ")}`,
+      );
+    }
   }
 
   if (startRoundId > currentRoundId && checkpoint) {

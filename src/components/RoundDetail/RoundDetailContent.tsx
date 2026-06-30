@@ -248,9 +248,13 @@ export function RoundDetailContent({
   const { claimable, totalRewardsFormatted } = useRoundRewardStatus(
     round.isRoundEnded ? round.roundId : undefined,
   );
-  const rewardsLocked =
-    isRoundRewardsLocked(round, currentRoundId) ||
-    (round.isRoundEnded && claimable === false);
+  // For ended rounds, the chain is the source of truth: admin can call
+  // RelayerRewardsPool.reduceExpectedActionsForRound after the report was generated,
+  // unlocking the round without the report knowing yet. Trust `claimable` over the report
+  // once we have it; fall back to the report only while the hook is still loading.
+  const rewardsLocked = round.isRoundEnded
+    ? claimable === false
+    : isRoundRewardsLocked(round, currentRoundId);
   const missedClaims =
     round.isRoundEnded && round.expectedActions > 0
       ? Math.max(0, round.expectedActions - round.completedActions)
