@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-20T16:28:53.459Z",
+  "generatedAt": "2026-07-20T22:24:28.807Z",
   "network": "mainnet",
   "firstRound": 69,
   "currentRound": 108,
@@ -1255,26 +1255,26 @@
     {
       "roundId": 108,
       "autoVotingUsersCount": 2020,
-      "votedForCount": 1747,
+      "votedForCount": 1750,
       "invalidVotesCount": 101,
       "rewardsClaimedCount": 0,
       "totalRelayerRewards": "0.00 B3TR",
       "totalRelayerRewardsRaw": "0",
-      "estimatedRelayerRewards": "4365.00 B3TR",
-      "estimatedRelayerRewardsRaw": "4365007004919293617892",
+      "estimatedRelayerRewards": "4298.22 B3TR",
+      "estimatedRelayerRewardsRaw": "4298223391087113396889",
       "numRelayers": 8,
-      "vthoSpentOnVoting": "205281.22 VTHO",
-      "vthoSpentOnVotingRaw": "205281227084519793817486",
+      "vthoSpentOnVoting": "205666.45 VTHO",
+      "vthoSpentOnVotingRaw": "205666457785679793817486",
       "vthoSpentOnClaiming": "0.00 VTHO",
       "vthoSpentOnClaimingRaw": "0",
-      "vthoSpentTotal": "205281.22 VTHO",
-      "vthoSpentTotalRaw": "205281227084519793817486",
+      "vthoSpentTotal": "205666.45 VTHO",
+      "vthoSpentTotalRaw": "205666457785679793817486",
       "expectedActions": 7676,
-      "completedActions": 5241,
+      "completedActions": 5250,
       "reducedUsersCount": 0,
-      "missedUsersCount": 608,
+      "missedUsersCount": 606,
       "allActionsOk": false,
-      "actionStatus": "⚠ 172 not voted",
+      "actionStatus": "⚠ 169 not voted",
       "isRoundEnded": false,
       "autoVoterUsersCount": 1851,
       "citizenUsersCount": 169,
@@ -1282,7 +1282,7 @@
       "navigatorAllocationSkipsCount": 0,
       "navigatorGovernanceSkipsCount": 0,
       "autoVoterVotedCount": 1746,
-      "citizenVotedCount": 1
+      "citizenVotedCount": 4
     }
   ],
   "relayers": [
@@ -4292,6 +4292,10 @@
     },
     {
       "address": "0x72c152f2e3b77e95e8c9c34e50a74121169ea7a6",
+      "rounds": []
+    },
+    {
+      "address": "0x1fe007bace52ef40e9227f36b9a784b823cf336e",
       "rounds": []
     },
     {
